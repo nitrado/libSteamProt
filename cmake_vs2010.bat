@@ -1,0 +1,1 @@
+cmake -f CMakeLists.txt -G "Visual Studio 10 2010"
