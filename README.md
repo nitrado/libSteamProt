@@ -17,6 +17,10 @@ TODO
 ### Linux
 TODO
 
+## Test
+### Windows
+Sample udp server is included, which is simulating a CSGO server
+
 ## History
 
 0.1 - Initial Release<br />
