@@ -8,7 +8,7 @@
 #include <ctime>
 #include <Windows.h>
 
-#include "../src/libSteamProt.h"
+#include "../../src/libSteamProt.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
