@@ -7,7 +7,7 @@
 #include <math.h>
 #include <ctime>
 
-#include "../src/libSteamProt.h"
+#include "../../src/libSteamProt.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "Windows.h"
