@@ -38,5 +38,5 @@ set(ALL_TARGETS ${ALL_TARGETS} bzlib)
 add_subdirectory(src)
 set(ALL_TARGETS ${ALL_TARGETS} libSteamProt)
 
-add_subdirectory(test)
+add_subdirectory(sample/cpp)
 set(ALL_TARGETS ${ALL_TARGETS} queryserver)
