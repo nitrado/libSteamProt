@@ -6,11 +6,11 @@
 #include <string.h>
 #include <math.h>
 #include <ctime>
-#include <Windows.h>
 
 #include "../src/libSteamProt.h"
 
 #if defined(_WIN32) || defined(_WIN64)
+#include "Windows.h"
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #endif
 
