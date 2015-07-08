@@ -5,10 +5,10 @@ Implement server side steam server query protocol in lightweight c code
 * Support compressed rules
 * Support split rules
 * Small footprint
-* No dynamic allocations
 * Easy to use in multi thread environments
 * Easy to use in different languages
 * CMake multi plattform build enviroment (Windows/Linux)
+* Visual C# support
 
 ## Installation
 ### Windows
@@ -22,6 +22,10 @@ TODO
 Sample udp server is included, which is simulating a CSGO server
 
 ## History
+
+0.2 - 08.07.2015
+* added csharp support
+* modified interface make it easier to use it in other languages
 
 0.1 - Initial Release<br />
 * simplified implementation of steam query protocol server core
