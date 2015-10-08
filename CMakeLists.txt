@@ -17,6 +17,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_FILES_DIRECTORY ${PROJECT_BINARY_DIR}/obj/${CMAKE_BUILD_TYPE})
 
+include_directories("C:\Program Files\Java\jdk1.8.0_45\include")
+include_directories("C:\Program Files\Java\jdk1.8.0_45\include\win32")
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /W3 /Zm500 /EHsc /GR /wd\"4996\"")
 
@@ -40,3 +43,6 @@ set(ALL_TARGETS ${ALL_TARGETS} libSteamProt)
 
 add_subdirectory(sample/cpp)
 set(ALL_TARGETS ${ALL_TARGETS} queryserver)
+
+add_subdirectory(sample/server)
+set(ALL_TARGETS ${ALL_TARGETS} rconserver)

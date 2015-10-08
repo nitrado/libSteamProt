@@ -13,7 +13,11 @@ extern "C" {
 #if defined(_WIN32) || defined(WIN32)
 #include <Windows.h>
 #define SP_API WINAPI
+#ifdef _DLL
+#define SP_EXTERN __declspec(dllexport)
+#else
 #define SP_EXTERN extern
+#endif
 #else
 #define SP_API
 #define SP_EXTERN extern
@@ -29,7 +33,7 @@ extern "C" {
 
 #define SP_SERVERTYPE_DEDICATED  'd'
 #define SP_SERVERTYPE_LISTEN     'l'
-#define SP_SERVERTYPE_P          'p'
+#define SP_SERVERTYPE_PROXY      'p'
 
 #define SP_ENVIRONMENT_LINUX     'l'
 #define SP_ENVIRONMENT_WINDOWS   'w'
@@ -48,6 +52,22 @@ extern "C" {
 #define SP_EDF_SOURCETV          0x40
 #define SP_EDF_PORT              0x80
 
+/*
+    RCON
+*/
+#define SP_RCON_MAX_LENGTH           4096 - 12
+
+#define SP_RCON_COMMAND_STATE_NONE      0
+#define SP_RCON_COMMAND_STATE_PROCESS   1
+#define SP_RCON_COMMAND_STATE_PROCESSED 2
+#define SP_RCON_COMMAND_STATE_ERROR     3
+
+#define SP_SERVERDATA_AUTH           3
+#define SP_SERVERDATA_AUTH_RESPONSE  2
+#define SP_SERVERDATA_CONSOLE_LOG    4
+#define SP_SERVERDATA_EXECCOMMAND    2
+#define SP_SERVERDATA_RESPONSE_VALUE 0
+
 #ifndef SP_COMPRESSED
 #define SP_COMPRESSED 0
 #endif
@@ -64,15 +84,12 @@ typedef struct {
     //short m_Size;
 } WRITE_BUF;
 
-typedef void (*FillPlayerCallback)(WRITE_BUF* pWriteBuf);
-typedef void (*FillInfoCallback)(WRITE_BUF* pWriteBuf);
-typedef void (*FillRulesCallback)(WRITE_BUF* pWriteBuf);
+typedef void (SP_API *FillPlayerCallback)(WRITE_BUF* pWriteBuf);
+typedef void (SP_API *FillInfoCallback)(WRITE_BUF* pWriteBuf);
+typedef void (SP_API *FillRulesCallback)(WRITE_BUF* pWriteBuf);
 
-typedef struct {
-    FillInfoCallback FillInfo;
-    FillPlayerCallback FillPayer;
-    FillRulesCallback FillRules;
-} SP_Protocol_Callbacks;
+typedef char (SP_API *IsRconPasswordValidCallback)(const char* Password);
+typedef const char* (SP_API *HandleRconBodyCallback)(const char* Body);
 
 typedef struct {
     //unsigned char Header;
@@ -100,6 +117,19 @@ typedef struct {
     char m_Keywords[SP_STRING_LENGTH];
     long long m_GameID;
 } A2S_INFO;
+
+/*typedef struct {
+    unsigned int m_ID;
+    char m_Request[SP_STRING_LENGTH];
+    char m_Response[SP_RCON_MAX_LENGTH];
+    char m_State;
+    struct RCON_COMMAND* m_pNext;
+} RCON_COMMAND;*/
+
+typedef struct {
+    char m_LoggedIn;
+    struct RCON_COMMAND* m_pCommandQueue;
+} RCON_DATA;
 
 typedef struct {
     unsigned char m_Index;
@@ -132,11 +162,23 @@ typedef struct {
     short m_Size;
 } SPLIT_STRUCT;
 
+SP_EXTERN RCON_DATA* SP_API RCON_DATA_create();
+SP_EXTERN WRITE_BUF* SP_API WRITE_BUF_create();
+SP_EXTERN A2S_INFO* SP_API A2S_INFO_create();
+SP_EXTERN A2S_PLAYER* SP_API A2S_PLAYER_create();
+SP_EXTERN A2S_RULES* SP_API A2S_RULES_create();
+SP_EXTERN void SP_API RCON_DATA_destory(RCON_DATA* pRconData);
+SP_EXTERN void SP_API A2S_INFO_destory(A2S_INFO* pInfo);
+SP_EXTERN void SP_API A2S_PLAYER_destory(A2S_PLAYER* pPlayer);
+SP_EXTERN void SP_API A2S_RULES_destory(A2S_RULES* pRules);
+SP_EXTERN void SP_API WRITE_BUF_destroy(WRITE_BUF* pWriteBuf);
+
 /*
     A2S_PLAYER Functions
 */
 SP_EXTERN void SP_API A2S_PLAYER_INIT(A2S_PLAYER* pPlayer);
 SP_EXTERN int SP_API A2S_PLAYER_WRITE(A2S_PLAYER* pPlayer, WRITE_BUF* pWriteBuf);
+SP_EXTERN PLAYER_STRUCT* SP_API A2S_PLAYER_GET(A2S_PLAYER* pPlayer, unsigned char Index);
 
 SP_EXTERN void SP_API PLAYER_STRUCT_setName(PLAYER_STRUCT* pPlayerStruct, const char* Name);
 SP_EXTERN void SP_API PLAYER_STRUCT_setScore(PLAYER_STRUCT* pPlayerStruct, long Score);
@@ -153,6 +195,7 @@ SP_EXTERN unsigned char SP_API A2S_PLAYER_getPlayerCount(A2S_PLAYER* pPlayer);
 */
 SP_EXTERN void SP_API A2S_RULES_INIT(A2S_RULES* pRules);
 SP_EXTERN int SP_API A2S_RULES_WRITE(A2S_RULES* pRules, WRITE_BUF* pWriteBuf);
+SP_EXTERN RULE_STRUCT* SP_API A2S_RULES_GET(A2S_RULES* pRules, unsigned char Index);
 
 SP_EXTERN void SP_API RULE_STRUCT_setName(RULE_STRUCT* pRuleStruct, const char* Name);
 SP_EXTERN void SP_API RULE_STRUCT_setValue(RULE_STRUCT* pRuleStruct, const char* Value);
@@ -175,7 +218,6 @@ SP_EXTERN void SP_API A2S_INFO_setSourceTV_Port(A2S_INFO* pInfo, short Port);
 SP_EXTERN void SP_API A2S_INFO_setSourceTV_Name(A2S_INFO* pInfo, const char* Name);
 SP_EXTERN void SP_API A2S_INFO_setKeywords(A2S_INFO* pInfo, const char* Keywords);
 SP_EXTERN void SP_API A2S_INFO_setGameID(A2S_INFO* pInfo, long long GameID);
-SP_EXTERN void SP_API A2S_INFO_setProtocol(A2S_INFO* pInfo, unsigned char Protocol);
 SP_EXTERN void SP_API A2S_INFO_setName(A2S_INFO* pInfo, const char* Name);
 SP_EXTERN void SP_API A2S_INFO_setMap(A2S_INFO* pInfo, const char* Map);
 SP_EXTERN void SP_API A2S_INFO_setFolder(A2S_INFO* pInfo, const char* Folder);
@@ -245,7 +287,8 @@ SP_EXTERN short SP_API WRITE_BUF_getSize(WRITE_BUF* pWriteBuf, unsigned char Ind
 /*
     Handle Socket Data
 */
-SP_EXTERN int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, SP_Protocol_Callbacks Callbacks);
+SP_EXTERN int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, FillInfoCallback FillInfo, FillPlayerCallback FillPlayer, FillRulesCallback FillRules);
+SP_EXTERN int SP_API HandleRconPacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, IsRconPasswordValidCallback IsRconPasswordValid, HandleRconBodyCallback HandleRconBody, RCON_DATA* pRconData);
 
 #ifdef __cplusplus
 }

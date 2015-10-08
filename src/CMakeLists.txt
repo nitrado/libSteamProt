@@ -6,7 +6,7 @@ SET(SOURCES
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSP_COMPRESSED=1")
 
-add_library(libSteamProt STATIC ${SOURCES})
+add_library(libSteamProt SHARED ${SOURCES})
 
 target_link_libraries(libSteamProt bzlib)
 

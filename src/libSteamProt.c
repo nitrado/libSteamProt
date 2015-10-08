@@ -1,6 +1,10 @@
 #include "libSteamProt.h"
 #include "../bzlib/bzlib.h"
 
+#if defined(_WIN32) || defined(_WIN64)
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+#endif
+
 #define safe_string_copy(dst, src) \
     memset(dst, 0, SP_STRING_LENGTH); \
     strncpy(dst, src, SP_STRING_LENGTH-1);
@@ -12,6 +16,102 @@
     dst[Pos + StringLength] = 0; \
     Pos += StringLength + 1; \
     }
+
+RCON_DATA* SP_API RCON_DATA_create() {
+    RCON_DATA* pRconData = (RCON_DATA*)malloc(sizeof(RCON_DATA));
+    memset(pRconData, 0, sizeof(RCON_DATA));
+    pRconData->m_LoggedIn = 0;
+    pRconData->m_pCommandQueue = NULL;
+    return pRconData;
+}
+
+/*RCON_COMMAND* SP_API RCON_COMMAND_create(RCON_DATA* pRconData, int ID, const char* Request) {
+    struct RCON_COMMAND* pRconCommand;
+
+    pRconCommand = (struct RCON_COMMAND*)malloc(sizeof(RCON_COMMAND));
+    memset(pRconCommand, 0, sizeof(RCON_COMMAND));
+    
+    pRconCommand->m_ID = ID;
+    pRconCommand->m_State = SP_RCON_COMMAND_STATE_NONE;
+    safe_string_copy(pRconCommand->m_Request, Request);
+
+    if(!pRconData->m_pCommandQueue) {
+        pRconData->m_pCommandQueue = pRconCommand;
+    } else {
+        pRconCommand->m_pNext = pRconData->m_pCommandQueue;
+        pRconData->m_pCommandQueue = pRconCommand;
+    }
+}
+
+void SP_API RCON_DATA_destory(RCON_DATA* pRconData, RCON_COMMAND* pRconCommand) {
+    struct RCON_COMMAND* pRconCommandIterator;
+    
+    pRconCommandIterator = pRconData->m_pCommandQueue;
+
+    do {
+        // Root
+        if(pRconCommandIterator == pRconData->m_pCommandQueue && pRconCommandIterator == pRconCommand) {
+            pRconData->m_pCommandQueue = pRconData->m_pCommandQueue->m_pNext;
+            free(pRconCommand);
+            return;
+        }
+
+        if(pRconCommandIterator->m_pNext && pRconCommandIterator->m_pNext == pRconCommand) {
+            pRconCommandIterator->m_pNext = pRconCommandIterator->m_pNext->m_pNext;
+        }
+
+        pRconCommandIterator = pRconCommand->m_pNext;
+    } while(pRconCommandIterator);
+}*/
+
+void SP_API RCON_DATA_destory(RCON_DATA* pRconData) {
+    if(pRconData)
+        free(pRconData);
+}
+
+WRITE_BUF* SP_API WRITE_BUF_create() {
+    return (WRITE_BUF*)malloc(sizeof(WRITE_BUF));
+}
+
+A2S_INFO* SP_API A2S_INFO_create() {
+    return (A2S_INFO*)malloc(sizeof(A2S_INFO));
+}
+
+A2S_PLAYER* SP_API A2S_PLAYER_create() {
+    return (A2S_PLAYER*)malloc(sizeof(A2S_PLAYER));
+}
+
+A2S_RULES* SP_API A2S_RULES_create() {
+    return (A2S_RULES*)malloc(sizeof(A2S_RULES));
+}
+
+void SP_API A2S_INFO_destory(A2S_INFO* pInfo) {
+    if(pInfo)
+        free(pInfo);
+}
+
+void SP_API WRITE_BUF_destroy(WRITE_BUF* pWriteBuf) {
+    if(pWriteBuf)
+        free(pWriteBuf);
+}
+
+void SP_API A2S_PLAYER_destory(A2S_PLAYER* pPlayer) {
+    if(pPlayer)
+        free(pPlayer);
+}
+
+void SP_API A2S_RULES_destory(A2S_RULES* pRules) {
+    if(pRules)
+        free(pRules);
+}
+
+PLAYER_STRUCT* SP_API A2S_PLAYER_GET(A2S_PLAYER* pPlayer, unsigned char Index) {
+    return &pPlayer->m_Players[Index];
+}
+
+RULE_STRUCT* SP_API A2S_RULES_GET(A2S_RULES* pRules, unsigned char Index) {
+    return &pRules->m_Rules[Index];
+}
 
 void SP_API WRITE_BUF_setCount(WRITE_BUF* pWriteBuf, unsigned char Count) {
     pWriteBuf->m_Count = Count;
@@ -508,7 +608,7 @@ int SP_API A2S_INFO_WRITE(A2S_INFO* pInfo, WRITE_BUF* pWriteBuf) {
     return STEAMPROT_OK;
 }
 
-int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, SP_Protocol_Callbacks Callbacks) {
+int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, FillInfoCallback FillInfo, FillPlayerCallback FillPlayer, FillRulesCallback FillRules) {
     int Pos;
     long Header;
     unsigned char Command;
@@ -524,19 +624,19 @@ int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, S
         Command = pBuf[Pos];
         switch(Command) {
         case SP_REQUEST_INFO:
-            if(Callbacks.FillInfo == NULL)
+            if(FillInfo == NULL)
                 return STEAMPROT_ERROR;
-            Callbacks.FillInfo(pWriteBuf);
+            FillInfo(pWriteBuf);
             return STEAMPROT_OK;
         case SP_REQUEST_PLAYER:
-            if(Callbacks.FillPayer == NULL)
+            if(FillPlayer == NULL)
                 return STEAMPROT_ERROR;
-            Callbacks.FillPayer(pWriteBuf);
+            FillPlayer(pWriteBuf);
             return STEAMPROT_OK;
         case SP_REQUEST_RULES:
-            if(Callbacks.FillRules == NULL)
+            if(FillRules == NULL)
                 return STEAMPROT_ERROR;
-            Callbacks.FillRules(pWriteBuf);
+            FillRules(pWriteBuf);
             return STEAMPROT_OK;
         default:
             return STEAMPROT_ERROR;
@@ -545,3 +645,89 @@ int SP_API HandlePacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, S
         return STEAMPROT_ERROR;
     }
 }
+
+typedef struct {
+    int m_Size;
+    int m_ID;
+    int m_Type;
+    unsigned char* m_Body;
+} RCON_PACKET;
+
+int SP_API RCON_WRITE(WRITE_BUF* pWriteBuf, int ID, int Type, const char* Message) {
+    int Pos, Size, StringLength;
+    int* pSize;
+    unsigned char* pBuf;
+
+    pBuf = pWriteBuf->m_Buffer[pWriteBuf->m_Count];
+
+    Pos = 0;
+    StringLength = strnlen(Message, SP_RCON_MAX_LENGTH - 12);
+    pSize = (int*)&pBuf[Pos];
+    Pos += 4;
+    memcpy(&pBuf[Pos], &ID, sizeof(ID));
+    Pos += 4;
+    memcpy(&pBuf[Pos], &Type, sizeof(Type));
+    Pos += 4;
+    memcpy(&pBuf[Pos], Message, StringLength);
+    Pos += StringLength;
+    memset(&pBuf[Pos], 0, 2); // empty
+    Pos += 2;
+
+    *pSize = StringLength + 10;
+
+    pWriteBuf->m_Size[pWriteBuf->m_Count] = Pos;
+    pWriteBuf->m_Count++;
+
+    return STEAMPROT_OK;
+}
+
+int SP_API HandleRconPacket(WRITE_BUF* pWriteBuf, unsigned char* pBuf, int BufLen, IsRconPasswordValidCallback IsRconPasswordValid, HandleRconBodyCallback HandleRconBody, RCON_DATA* pRconData) {
+    int Pos, Size, ID, Type, StringLength;
+    char Body[SP_RCON_MAX_LENGTH];
+    memset(Body, 0, SP_RCON_MAX_LENGTH);
+
+    Pos = 0;
+    if(BufLen < 14) {
+        return STEAMPROT_ERROR;
+    }
+
+    memcpy(&Size, &pBuf[Pos], sizeof(Size));
+    Pos += 4;
+    if(BufLen >= Size) {
+        memcpy(&ID, &pBuf[Pos], sizeof(ID));
+        Pos += 4;
+        memcpy(&Type, &pBuf[Pos], sizeof(Type));
+        Pos += 4;
+        //StringLength = Size - 12 - 1 /* empty string */;
+        StringLength = strnlen(&pBuf[Pos], BufLen - 12);
+        memcpy(Body, &pBuf[Pos], StringLength);
+        Pos += StringLength + 1 /* empty */;
+
+        switch(Type) {
+        case SP_SERVERDATA_AUTH:
+            // Handle rcon auth
+            RCON_WRITE(pWriteBuf, ID, SP_SERVERDATA_RESPONSE_VALUE, "");
+
+            if(IsRconPasswordValid(Body)) {
+                pRconData->m_LoggedIn = 1;
+                return RCON_WRITE(pWriteBuf, ID, SP_SERVERDATA_AUTH_RESPONSE, "");
+            } else {
+                pRconData->m_LoggedIn = 0;
+                return RCON_WRITE(pWriteBuf, -1, SP_SERVERDATA_AUTH_RESPONSE, "");
+            }
+        case SP_SERVERDATA_EXECCOMMAND:
+            // Handle rcon command
+            if(!pRconData->m_LoggedIn)
+                return RCON_WRITE(pWriteBuf, -1, SP_SERVERDATA_AUTH_RESPONSE, "");
+
+            printf("Cmd: %s\n", Body);
+
+            return RCON_WRITE(pWriteBuf, ID, SP_SERVERDATA_RESPONSE_VALUE, HandleRconBody(Body));
+        default:
+            return STEAMPROT_OK;
+        }
+    } else {
+        return STEAMPROT_ERROR;
+    }
+}
+
